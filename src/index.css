@@ -36,10 +36,12 @@ body {
     Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   background-color: var(--primary-bg);
   color: var(--text-primary);
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+  overflow: hidden;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 h1 {
@@ -79,20 +81,7 @@ button:focus-visible {
   }
 }
 
-.snap-container {
-  scroll-snap-type: y mandatory;
-  height: 100vh;
-  overflow-y: scroll;
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-.snap-container::-webkit-scrollbar {
-  display: none;
-}
-
-.snap-item {
-  scroll-snap-align: start;
-  height: 100vh;
-  position: relative;
+/* Disable pull-to-refresh on mobile */
+html {
+  overscroll-behavior-y: contain;
 }

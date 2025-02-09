@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useInView } from "react-intersection-observer";
 import "./App.css";
 import ContentCard from "./components/ContentCard";
@@ -24,6 +25,9 @@ function App() {
   const [contents, setContents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const containerRef = useRef(null);
+  const touchStartY = useRef(null);
   const { ref, inView } = useInView({
     threshold: 0.5,
   });
@@ -66,6 +70,54 @@ function App() {
     }
   }, []);
 
+  const handleTouchStart = (e) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (!touchStartY.current) return;
+
+    const touchEndY = e.changedTouches[0].clientY;
+    const deltaY = touchEndY - touchStartY.current;
+
+    // Require a minimum swipe distance to trigger navigation
+    if (Math.abs(deltaY) > 50) {
+      if (deltaY < 0 && currentIndex < contents.length - 1) {
+        setCurrentIndex((prev) => prev + 1);
+      } else if (deltaY > 0 && currentIndex > 0) {
+        setCurrentIndex((prev) => prev - 1);
+      }
+    }
+
+    touchStartY.current = null;
+  };
+
+  const handleNext = useCallback(() => {
+    if (currentIndex < contents.length - 1) {
+      setCurrentIndex((prev) => prev + 1);
+    }
+  }, [currentIndex, contents.length]);
+
+  const handlePrev = useCallback(() => {
+    if (currentIndex > 0) {
+      setCurrentIndex((prev) => prev - 1);
+    }
+  }, [currentIndex]);
+
+  // Handle keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+        handlePrev();
+      } else if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+        handleNext();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleNext, handlePrev]);
+
   useEffect(() => {
     // Generate initial content
     if (contents.length === 0) {
@@ -75,10 +127,10 @@ function App() {
 
   useEffect(() => {
     // Generate more content when user reaches the last card
-    if (inView && !loading && contents.length > 0) {
+    if (inView && !loading && currentIndex === contents.length - 1) {
       generateContent();
     }
-  }, [inView, loading]);
+  }, [inView, loading, currentIndex, contents.length]);
 
   if (error) {
     return (
@@ -100,20 +152,39 @@ function App() {
   }
 
   return (
-    <div className="snap-container">
-      {contents.map((content, index) => (
-        <div key={index} className="snap-item flex items-center justify-center">
-          <ContentCard content={content} />
-        </div>
-      ))}
+    <div
+      ref={containerRef}
+      className="h-screen overflow-hidden touch-none"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={currentIndex}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          className="h-full flex items-center justify-center"
+        >
+          {contents[currentIndex] && (
+            <ContentCard
+              content={contents[currentIndex]}
+              onNext={handleNext}
+              onPrev={handlePrev}
+              isFirst={currentIndex === 0}
+              isLast={currentIndex === contents.length - 1}
+            />
+          )}
+        </motion.div>
+      </AnimatePresence>
       {loading && (
-        <div className="snap-item flex items-center justify-center">
-          <div className="text-[var(--text-secondary)]">
+        <div className="absolute inset-x-0 bottom-4 flex justify-center">
+          <div className="text-[var(--text-secondary)] bg-black/30 px-4 py-2 rounded-full backdrop-blur-sm">
             Loading more knowledge...
           </div>
         </div>
       )}
-      <div ref={ref} style={{ height: "1px" }} />
+      <div ref={ref} className="sr-only" />
     </div>
   );
 }
